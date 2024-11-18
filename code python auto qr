@@ -1,0 +1,187 @@
+import qrcode
+from PIL import Image, ImageEnhance, ImageTk
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+# Hàm tạo mã QR
+def create_qr_code(data, filename="qrcode.png", fill_color='black', back_color='white', logo_path=None, file_format='PNG', size=10, brightness=1.0, contrast=1.0):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=size,
+        border=4,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color=fill_color, back_color=back_color).convert("RGB")
+
+    # Điều chỉnh độ sáng và tương phản
+    enhancer = ImageEnhance.Brightness(img)
+    img = enhancer.enhance(brightness)
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(contrast)
+
+    # Thêm logo nếu có
+    if logo_path:
+        logo = Image.open(logo_path).convert("RGBA")
+        logo_size = min(img.size) // 5
+        logo = logo.resize((logo_size, logo_size))
+        logo_position = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2)
+        img.paste(logo, logo_position, logo)
+
+    img.save(filename, format=file_format)
+
+    # Thu nhỏ ảnh trước khi hiển thị
+    preview_size = (80, 80)  # Kích thước ảnh xem trước nhỏ hơn
+    img.thumbnail(preview_size)
+
+    return img  # Trả về hình ảnh đã thu nhỏ để hiển thị
+
+# Giao diện người dùng
+def generate_qr_gui():
+    def browse_file():
+        filename = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.jpeg")])
+        logo_entry.delete(0, tk.END)
+        logo_entry.insert(0, filename)
+
+    def save_file():
+        filename = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg")])
+        return filename
+
+    def on_generate():
+        data = data_entry.get()
+        if not data:
+            messagebox.showerror("Lỗi", "Dữ liệu không thể để trống!")
+            return
+        filename = save_file()
+        if not filename:
+            return
+        fill_color = fill_color_entry.get()
+        back_color = back_color_entry.get()
+        logo_path = logo_entry.get() if logo_entry.get() else None
+        file_format = file_format_var.get()
+        size = int(size_var.get())
+        brightness = float(brightness_var.get())
+        contrast = float(contrast_var.get())
+        
+        # Xóa ảnh QR xem trước nếu có
+        qr_preview_label.config(image='')  # Xóa ảnh QR xem trước cũ
+
+        # Tạo ảnh QR mới và hiển thị
+        img = create_qr_code(data, filename, fill_color, back_color, logo_path, file_format, size, brightness, contrast)
+        img_tk = ImageTk.PhotoImage(img)
+        qr_preview_label.config(image=img_tk)
+        qr_preview_label.image = img_tk
+        result_label.config(text=f"QR code đã được lưu tại: {filename}")
+
+    def update_example_image(*args):
+        data = data_entry.get() or "Example QR Code"
+        fill_color = fill_color_entry.get()
+        back_color = back_color_entry.get()
+        brightness = float(brightness_var.get())
+        contrast = float(contrast_var.get())
+        img = create_qr_code(data, "example.png", fill_color, back_color, None, "PNG", 10, brightness, contrast)
+        img_tk = ImageTk.PhotoImage(img)
+        qr_preview_label.config(image=img_tk)
+        qr_preview_label.image = img_tk
+
+    root = tk.Tk()
+    root.title("QR Code Generator")
+    root.geometry("400x500")  # Kích thước cửa sổ 400x500
+    root.resizable(False, False)
+
+    # Tạo canvas và thêm ảnh nền
+    canvas = tk.Canvas(root, width=400, height=500)
+    canvas.pack(fill="both", expand=True)
+    
+    # Tải ảnh nền
+    background_image = Image.open("C:/Users/Minh/Pictures/a.jpg")  # Đường dẫn đến ảnh nền
+    background_image = background_image.resize((600, 500), Image.Resampling.LANCZOS)  # Điều chỉnh kích thước ảnh cho vừa với cửa sổ
+    background_tk = ImageTk.PhotoImage(background_image)
+    
+    # Vẽ ảnh nền lên canvas
+    canvas.create_image(0, 0, anchor="nw", image=background_tk)
+
+    # Tiêu đề
+    title_label = tk.Label(root, text="Tạo QR Code", font=("Arial", 12, "bold"), bg="white", fg="#333")
+    canvas.create_window(200, 40, window=title_label)
+
+    # Dữ liệu
+    data_label = tk.Label(root, text="Dữ liệu:", font=("Arial", 9), fg="black")
+    canvas.create_window(60, 80, window=data_label)
+    data_entry = tk.Entry(root, width=40, font=("Arial", 9), bd=0, fg="black", bg="white")
+    canvas.create_window(240, 80, window=data_entry)
+
+    # Màu QR
+    fill_color_label = tk.Label(root, text="Màu QR:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 120, window=fill_color_label)
+    fill_color_entry = tk.Entry(root, width=40, font=("Arial", 9), bd=0, fg="black", bg="white")
+    fill_color_entry.insert(0, 'black')
+    canvas.create_window(240, 120, window=fill_color_entry)
+
+    # Màu nền
+    back_color_label = tk.Label(root, text="Màu nền:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 160, window=back_color_label)
+    back_color_entry = tk.Entry(root, width=40, font=("Arial", 9), bd=0, fg="black", bg="white")
+    back_color_entry.insert(0, 'white')
+    canvas.create_window(240, 160, window=back_color_entry)
+
+    # Logo
+    logo_label = tk.Label(root, text="Logo (tùy chọn):", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(50, 200, window=logo_label)
+    logo_entry = tk.Entry(root, width=40, font=("Arial", 9), bd=0, fg="black", bg="white")
+    canvas.create_window(240, 200, window=logo_entry)
+    browse_button = tk.Button(root, text="Chọn tệp", font=("Arial", 9), command=browse_file)
+    canvas.create_window(240, 240, window=browse_button)
+
+    # Định dạng file
+    file_format_label = tk.Label(root, text="Định dạng file:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 280, window=file_format_label)
+    file_format_var = tk.StringVar(value="PNG")
+    file_format_menu = ttk.Combobox(root, textvariable=file_format_var, values=["PNG", "JPEG"], state="readonly", font=("Arial", 9))
+    canvas.create_window(240, 280, window=file_format_menu)
+
+    # Kích thước
+    size_label = tk.Label(root, text="Kích thước:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 320, window=size_label)
+    size_var = tk.StringVar(value="10")
+    size_menu = ttk.Combobox(root, textvariable=size_var, values=["5", "10", "15"], state="readonly", font=("Arial", 9))
+    canvas.create_window(240, 320, window=size_menu)
+
+    # Độ sáng
+    brightness_label = tk.Label(root, text="Độ sáng:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 360, window=brightness_label)
+    brightness_var = tk.StringVar(value="1.0")
+    brightness_menu = ttk.Combobox(root, textvariable=brightness_var, values=["0.5", "1.0", "1.5", "2.0"], state="readonly", font=("Arial", 9))
+    canvas.create_window(240, 360, window=brightness_menu)
+
+    # Độ tương phản
+    contrast_label = tk.Label(root, text="Độ tương phản:", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(60, 400, window=contrast_label)
+    contrast_var = tk.StringVar(value="1.0")
+    contrast_menu = ttk.Combobox(root, textvariable=contrast_var, values=["0.5", "1.0", "1.5", "2.0"], state="readonly", font=("Arial", 9))
+    canvas.create_window(240, 400, window=contrast_menu)
+
+    # Nút Generate
+    generate_button = tk.Button(root, text="Tạo QR", font=("Arial", 9), command=on_generate)
+    canvas.create_window(200, 440, window=generate_button)
+
+    # Kết quả
+    result_label = tk.Label(root, text="QR code sẽ được lưu ở đây", font=("Arial", 9), fg="black", bg="white")
+    canvas.create_window(200, 470, window=result_label)
+
+    # Hiển thị ảnh QR xem trước
+    qr_preview_label = tk.Label(root)
+    canvas.create_window(360, 460, window=qr_preview_label)  # Di chuyển ảnh QR về góc dưới bên phải
+
+    # Cập nhật ảnh xem trước khi thay đổi dữ liệu
+    data_entry.bind("<KeyRelease>", update_example_image)
+    fill_color_entry.bind("<KeyRelease>", update_example_image)
+    back_color_entry.bind("<KeyRelease>", update_example_image)
+    brightness_menu.bind("<KeyRelease>", update_example_image)
+    contrast_menu.bind("<KeyRelease>", update_example_image)
+
+    root.mainloop()
+
+# Chạy giao diện
+generate_qr_gui()
